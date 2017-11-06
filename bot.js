@@ -2,9 +2,15 @@
 const Discord = require("discord.js");
 const osu = require('node-osu');
 const ytdl = require('ytdl-core')
+const search = require('youtube-search');
 //НАСТРОЙКИ И КОНФИГ
 const token = process.env.token;
 const prefix = process.env.prefix;
+
+var opts = {
+  maxResults: 1,
+  key: process.env.ytkey
+};
 
 var osuApi = new osu.Api(process.env.osutoken, {
     baseUrl: 'https://osu.ppy.sh/api',
@@ -20,27 +26,25 @@ var fortunes = [
 ];
 
 function play(connection, message) {
-    var server = servers[message.guild.id];
+	var server = servers[message.guild.id];
 	
-	ytdl.getInfo(server.queue[0], {filter: "audioonly", quality: "lowest"}, function (err, data) {
-		var arr = [];
-
-		arr.push(data.title);
-		console.log(arr[0]);
-		message.channel.sendMessage("Now playing: " + arr[0]);
-		arr.shift();
-	})
-
-	var stream = ytdl(server.queue[0], {filter: "audioonly", quality: "lowest"})
+	search(server.queue[0], opts, function(err, data) {
+		if (err) return console.log(err);
+		data.map(function (data) {
+			message.channel.sendMessage("Сейчас играет: " + data.title);
+			
+			var stream = ytdl(data.link, {filter: "audioonly", quality: "lowest"})
+			
+			server.dispatcher = connection.playStream(stream);
+		});
 		
-    server.dispatcher = connection.playStream(stream);
-
-    server.queue.shift();
-
-    server.dispatcher.on("end", function() {
-        if (server.queue[0]) play(connection, message);
-        else connection.disconnect();
-    });
+		server.queue.shift();
+		
+		server.dispatcher.on("end", function() {
+			if (server.queue[0]) play(connection, message);
+			else connection.disconnect();
+		});
+	});
 };
 
 var bot = new Discord.Client();
@@ -83,7 +87,7 @@ bot.on("message", function(message) {
             break;
         case "play":
             if (!args[1]) {
-                message.reply("Пожалуйста введите сылку на видио на ютубе!");
+                message.reply("Пожалуйста введите сылку на видео на ютубе!");
                 return;
             }
 
@@ -97,8 +101,8 @@ bot.on("message", function(message) {
             };
 
             var server = servers[message.guild.id];
-
-            server.queue.push(args[1]);
+			
+            server.queue.push(message.content.split('t.play ')[1]);
 
             if (!message.guild.voiceConnection) message.member.voiceChannel.join().then(function(connection){
                 play(connection, message);

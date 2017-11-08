@@ -1,63 +1,78 @@
-//МОДУЛИ
-const Discord = require("discord.js");
-const osu = require('node-osu');
-const ytdl = require('ytdl-core')
-const search = require('youtube-search');
-//НАСТРОЙКИ И КОНФИГ
-const token = process.env.token;
-const prefix = process.env.prefix;
-
-var opts = {
-  maxResults: 1,
-  key: process.env.ytkey
+//Connect mudules
+const Discord = require("discord.js"); //basic discord bot library
+const ytdl = require("ytdl-core"); //youtube download core
+const yts = require("youtube-search"); //search videos in youtube
+const httpapi = require("node-osu"); //module for http requst witch basic api
+//Setting up
+const token = process.env.token; //discord bot token
+const prefix = process.env.prefix; //discord bot prefix
+var ytopt = { //yts options
+	maxResults: 1, //results
+	key: process.env.ytkey //youtube key
 };
-
-var osuApi = new osu.Api(process.env.osutoken, {
-    baseUrl: 'https://osu.ppy.sh/api',
-    notFoundAsError: true,
-    completeScores: false
+var osuApi = new httpapi.Api(process.env.osutoken, { //osu api + osu key
+	baseUrl: 'https://osu.ppy.sh/api', //api url
+	notFoundAsError: true,
+	completeScores: false
 });
-
-var fortunes = [
+var fortunes = [ //Fortune answer
     "Да!",
     "Нет!",
     "Возможно...",
     "Иногда"
 ];
 
+//Functions
 function play(connection, message) {
 	var server = servers[message.guild.id];
+	var ytlinkcheck = server.queue[0].indexOf("youtube.com/watch") >= 0; //check youtube link or title of video
 	
-	search(server.queue[0], opts, function(err, data) {
-		if (err) return console.log(err);
-		data.map(function (data) {
+	if (ytlinkcheck == true) {
+		ytdl.getInfo(server.queue[0], {filter: "audioonly", quality: "lowest"}, function (err, data) {
 			message.channel.sendMessage("Сейчас играет: " + data.title);
-			
-			var stream = ytdl(data.link, {filter: "audioonly", quality: "lowest"})
+
+			var stream = ytdl(server.queue[0], {filter: "audioonly", quality: "lowest"})
 			
 			server.dispatcher = connection.playStream(stream);
+			server.queue.shift();
+			
+			server.dispatcher.on("end", function() {
+				if (server.queue[0]) play(connection, message);
+				else connection.disconnect();
+			});
 		});
-		
-		server.queue.shift();
-		
-		server.dispatcher.on("end", function() {
-			if (server.queue[0]) play(connection, message);
-			else connection.disconnect();
+	} else {
+		yts(server.queue[0], ytopt, function(err, data) {
+			if (err) return console.log("ERROR 4: VIDEO NOT FOUND!");
+			data.map(function (data) {
+				message.channel.sendMessage("Сейчас играет: " + data.title);
+				
+				var stream = ytdl(data.link, {filter: "audioonly", quality: "lowest"})
+				server.dispatcher = connection.playStream(stream);
+			});
+			
+			server.queue.shift();
+			
+			server.dispatcher.on("end", function() {
+				if (server.queue[0]) play(connection, message);
+				else connection.disconnect();
+			});
 		});
-	});
+	}
 };
 
-var bot = new Discord.Client();
+//Bot script
+var bot = new Discord.Client(); //bot
 
-var servers = {};
+var servers = {}; //servers cvar
 
-bot.on("ready", function() {
-    console.log("Готов");
-    bot.user.setGame('TinyBot | NK');
-    bot.user.setStatus('online');
+bot.on("ready", function() { //when bot loaded
+    console.log("Готов"); //log
+    bot.user.setGame('TinyBot | NK'); //discord bot game
+    bot.user.setStatus('online'); //discord bot status
 });
 
-bot.on("message", function(message) {
+bot.on("message", function(message) { //when bot message
     if (message.author.equals(bot.user)) return;
 
     if (!message.content.startsWith(prefix)) return;
@@ -81,13 +96,13 @@ bot.on("message", function(message) {
                     .addField("Главное", "**ID:** " + user.id + "\n**Страна:** " + user.country + "\n**Уровень:** " + user.level + "\n**Аккуратность:** " + user.accuracyFormatted, true)
                     .addField("PP", "**Всего:** " + user.pp.raw + "\n**Ранк:** #" + user.pp.rank + "\n**Ранк в " + user.country + ":** #" + user.pp.countryRank, true)
                     .addField("Карты", "**SS:** " + user.counts.SS + "\n**S:** " + user.counts.S + "\n**A:** " + user.counts.A, true)                   
-                    .setFooter("Rikki BOT INFO | Osu! profile by NK");
+                    .setFooter("TinyBot v0.3 | Osu! profile");
                 message.channel.sendEmbed(embed);
             })
             break;
         case "play":
             if (!args[1]) {
-                message.reply("Пожалуйста введите сылку на видео на ютубе!");
+                message.reply("Пожалуйста введите ссылку или !");
                 return;
             }
 
@@ -102,7 +117,7 @@ bot.on("message", function(message) {
 
             var server = servers[message.guild.id];
 			
-            server.queue.push(message.content.split('t.play ')[1]);
+            server.queue.push(message.content.substring(7));
 
             if (!message.guild.voiceConnection) message.member.voiceChannel.join().then(function(connection){
                 play(connection, message);
@@ -114,7 +129,7 @@ bot.on("message", function(message) {
             if (server.dispatcher) server.dispatcher.end();
             break;
         case "stop":
-            var server =servers[message.guild.id];
+            var server = servers[message.guild.id];
             if (message.guild.voiceConnection) message.guild.voiceConnection.disconnect();
             break;
         default:
@@ -122,4 +137,4 @@ bot.on("message", function(message) {
     }
 })
 
-bot.login(token);
+bot.login(token); //bot login

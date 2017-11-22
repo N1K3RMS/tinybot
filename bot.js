@@ -1,140 +1,78 @@
-//Connect mudules
-const Discord = require("discord.js"); //basic discord bot library
-const ytdl = require("ytdl-core"); //youtube download core
-const yts = require("youtube-search"); //search videos in youtube
-const httpapi = require("node-osu"); //module for http requst witch basic api
-//Setting up
-const token = process.env.token; //discord bot token
-const prefix = process.env.prefix; //discord bot prefix
-var ytopt = { //yts options
-	maxResults: 1, //results
-	key: process.env.ytkey //youtube key
-};
-var osuApi = new httpapi.Api(process.env.osutoken, { //osu api + osu key
-	baseUrl: 'https://osu.ppy.sh/api', //api url
-	notFoundAsError: true,
-	completeScores: false
-});
-var fortunes = [ //Fortune answer
-    "Да!",
-    "Нет!",
-    "Возможно...",
-    "Иногда"
-];
+const Discord = require("discord.js"); //Discord.js
+const fs = require("fs"); //Файловая система
+const bot = new Discord.Client(); //Бот
+bot.commands = new Discord.Collection(); //Комманды
+bot.mutes = require("./mutes.json"); //Список с мутами
+bot.queue = {}; //Очередь
 
-//Functions
-function play(connection, message) {
-	var server = servers[message.guild.id];
-	var ytlinkcheck = server.queue[0].indexOf("youtube.com/watch") >= 0; //check youtube link or title of video
+
+//Загружаем список js файлов
+fs.readdir("./cmds/", async (err, files) => {
+	if(err) console.log(err); //Ошибка
+	let jsfiles = files.filter(f => f.split(".").pop() === "js"); //Фильтер поиска js файлов
 	
-	if (ytlinkcheck == true) {
-		ytdl.getInfo(server.queue[0], {filter: "audioonly", quality: "lowest"}, function (err, data) {
-			message.channel.sendMessage("Сейчас играет: " + data.title);
-
-			var stream = ytdl(server.queue[0], {filter: "audioonly", quality: "lowest"})
-			
-			server.dispatcher = connection.playStream(stream);
-			server.queue.shift();
-			
-			server.dispatcher.on("end", function() {
-				if (server.queue[0]) play(connection, message);
-				else connection.disconnect();
-			});
-		});
-	} else {
-		yts(server.queue[0], ytopt, function(err, data) {
-			if (err) return console.log("ERROR 4: VIDEO NOT FOUND!");
-			data.map(function (data) {
-				message.channel.sendMessage("Сейчас играет: " + data.title);
-				
-				var stream = ytdl(data.link, {filter: "audioonly", quality: "lowest"})
-				server.dispatcher = connection.playStream(stream);
-			});
-			
-			server.queue.shift();
-			
-			server.dispatcher.on("end", function() {
-				if (server.queue[0]) play(connection, message);
-				else connection.disconnect();
-			});
-		});
+	//Количество загруженных команд
+	if(jsfiles.length <= 0) {
+		console.log(`Не одна команда не найдена или не загружена!`);
 	}
-};
-
-//Bot script
-var bot = new Discord.Client(); //bot
-
-var servers = {}; //servers cvar
-
-bot.on("ready", function() { //when bot loaded
-    console.log("Готов"); //log
-    bot.user.setGame('TinyBot | NK'); //discord bot game
-    bot.user.setStatus('online'); //discord bot status
+	console.log(`Загружено ${jsfiles.length} команд!`);
+	
+	//Выдаём список загруженных команд
+	jsfiles.forEach((f, i) => {
+		let props = require(`./cmds/${f}`);
+		console.log(`${i + 1}: ${f} загружен!`);
+		bot.commands.set(props.help.name, props);
+	});
 });
 
-bot.on("message", function(message) { //when bot message
-    if (message.author.equals(bot.user)) return;
+//При готовности бота
+bot.on("ready", async () => {
+	console.log(`Бот готов! Имя бота: ${bot.user.username}`); //Сообщение о готовности
+	bot.user.setGame("TinyBot | NK"); //Игра бота
+	bot.user.setStatus("online"); //Статус бота
+	
+	//Генерируем ссылку на приглашения бота
+	try {
+		await bot.generateInvite(['ADMINISTRATOR']).then(link => {
+			console.log(`Ссылка на приглашение: \n${link}`);
+		});
+	} catch(err) {
+		console.log(err.stack);
+	}
+	
+	//Проверяем файл с мутами и время мута
+	bot.setInterval(() => {
+		for(let i in bot.mutes) {
+			let time = bot.mutes[i].time;
+			let guildId = bot.mutes[i].guild;
+			let guild = bot.guilds.get(guildId);
+			let member = guild.members.get(i);
+			let mutedRole = guild.roles.find(r => r.name === "Muted");
+			if(!mutedRole) continue;
 
-    if (!message.content.startsWith(prefix)) return;
+			if(Date.now() > time) {
+				member.removeRole(mutedRole);
+				delete bot.mutes[i];
 
-    var args = message.content.substring(prefix.length).split(" ");
+				fs.writeFile("./mutes.json", JSON.stringify(bot.mutes), err => {
+					if(err) console.log(err);
+					console.log(`${bot.user.username}: Я размутил ${member.user.tag}!`);
+				});
+			}
+		}
+	}, 1000) //Интервал проверки в мс = 1 сек
+});
 
-    switch (args[0].toLowerCase()) {
-        case "ping":
-            message.channel.sendMessage("Pong!");
-            break;
-        case "ball":
-            if (args[1]) message.reply(fortunes[Math.floor(Math.random() * fortunes.length)]);
-            else message.reply("Не могу прочитать сообщение");
-            break;
-        case "osuprofile":
-            osuApi.getUser({u: args[1]}).then(user => {
-                var embed = new Discord.RichEmbed()
-                    .setURL("https://osu.ppy.sh/u/" + user.id)
-                    .setTitle("Osu! профиль | " + user.name)
-                    .setColor("#ff66aa")
-                    .addField("Главное", "**ID:** " + user.id + "\n**Страна:** " + user.country + "\n**Уровень:** " + user.level + "\n**Аккуратность:** " + user.accuracyFormatted, true)
-                    .addField("PP", "**Всего:** " + user.pp.raw + "\n**Ранк:** #" + user.pp.rank + "\n**Ранк в " + user.country + ":** #" + user.pp.countryRank, true)
-                    .addField("Карты", "**SS:** " + user.counts.SS + "\n**S:** " + user.counts.S + "\n**A:** " + user.counts.A, true)                   
-                    .setFooter("TinyBot v0.3 | Osu! profile");
-                message.channel.sendEmbed(embed);
-            })
-            break;
-        case "play":
-            if (!args[1]) {
-                message.reply("Пожалуйста введите ссылку или !");
-                return;
-            }
+//При получении сообщения
+bot.on("message", async message => {
+	if(message.author.bot) return; //Если отправитель бот
+	if(!message.content.startsWith(process.env.prefix)) return; //Если сообщение без префикса
 
-            if (!message.member.voiceChannel) {
-                message.channel.sendMessage("Вы не находитесь в голосовом канале!");
-                return;
-            }
+	let args = message.content.substring(message.content.split(" ")[0].length + 1); //Получаем аргументы
+	let command = message.content.substring(process.env.prefix.length).split(" ")[0]; //Получаем команду
 
-            if (!servers[message.guild.id]) servers[message.guild.id] = {
-                queue: []
-            };
+	let cmd = bot.commands.get(command); //Устанавливаем команду
+	if(cmd) cmd.run(bot, message, args); //Запуск при получении команды
+});
 
-            var server = servers[message.guild.id];
-			
-            server.queue.push(message.content.substring(7));
-
-            if (!message.guild.voiceConnection) message.member.voiceChannel.join().then(function(connection){
-                play(connection, message);
-            });
-            break;
-        case "skip":
-            var server = servers[message.guild.id];
-
-            if (server.dispatcher) server.dispatcher.end();
-            break;
-        case "stop":
-            var server = servers[message.guild.id];
-            if (message.guild.voiceConnection) message.guild.voiceConnection.disconnect();
-            break;
-        default:
-            message.reply("Неизвестаная команда");
-    }
-})
-
-bot.login(token); //bot login
+bot.login(process.env.token);

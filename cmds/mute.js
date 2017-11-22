@@ -27,9 +27,6 @@ module.exports.run = async (bot, message, args) => {
 					ADD_REACTIONS: false //Добавлять реакции
 				});
 			});
-			role.setPosition(1)
-				.then(r => console.log(`Role position: ${r.position}`))
-				.catch(console.error);
 		} catch(e) {
 			console.log(e.stack); //Ловим ошибки
 		}

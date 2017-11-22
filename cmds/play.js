@@ -10,15 +10,14 @@ var ytsopt = {
 
 //Настройки скачивания
 var ytdlopt = {
-	f: "audioonly",
-	q: "lowest"
+	f: "audioonly"
 };
 
 function play(connection, message, bot) {
 	var server = bot.queue[message.guild.id]; //Получаем сервер
 
 	var videoID = server.queue[0].url; //ID видео
-	ytdl.getInfo(videoID, {filter: ytdlopt.f, quality: ytdlopt.q}, (err, data) => {
+	ytdl.getInfo(videoID, {filter: ytdlopt.f}, (err, data) => {
 		if(err) {
 			console.log(err);
 			message.channel.send("Видео не найдено!");

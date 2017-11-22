@@ -17,7 +17,6 @@ module.exports.run = async (bot, message, args) => {
 				name: "Muted", //Имя роли
 				color: "#000000", //Цвет роли в HEX
 				permissions: 0, //Права роли
-				position: 1
 			});
 
 			//
@@ -28,6 +27,9 @@ module.exports.run = async (bot, message, args) => {
 					ADD_REACTIONS: false //Добавлять реакции
 				});
 			});
+			role.setPosition(1)
+				.then(r => console.log(`Role position: ${r.position}`))
+				.catch(console.error);
 		} catch(e) {
 			console.log(e.stack); //Ловим ошибки
 		}

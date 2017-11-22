@@ -27,10 +27,6 @@ module.exports.run = async (bot, message, args) => {
 					ADD_REACTIONS: false //Добавлять реакции
 				});
 			});
-			// Set the position of the role
-			role.setPosition(1, true)
-				.then(r => console.log(`Role position: ${r.position}`))
-				.catch(console.error);
 		} catch(e) {
 			console.log(e.stack); //Ловим ошибки
 		}
@@ -53,6 +49,9 @@ module.exports.run = async (bot, message, args) => {
 		if(!arg[1]) message.channel.send(`${toMute.user.tag} был отправлен в мут навсегда!`);
 	});
 	await toMute.addRole(role); //Добавляем роль пользователю
+	role.setPosition(1, true)
+		.then(r => console.log(`Role position: ${r.position}`))
+		.catch(console.error);
 }
 
 module.exports.help = {

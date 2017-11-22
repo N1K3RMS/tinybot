@@ -28,7 +28,7 @@ function play(connection, message, bot) {
 		var time = Math.floor(data.length_seconds / 60) + ':' + data.length_seconds % 60;
 
 		var videoinfo = new Discord.RichEmbed() //embed
-			.setAuthor(data.title, bot.user.avatar, videoID)
+			.setAuthor(data.title, message.author.avatarURL, videoID)
 			.setColor("#ff3b3b")
 			.setThumbnail(data.thumbnail_url) //Превью
 			.setDescription(`**Описание:** ${desc}\n**Автор:** ${data.author.name}\n**Просмотров:** ${data.view_count}`)

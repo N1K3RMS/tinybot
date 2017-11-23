@@ -7,12 +7,12 @@ module.exports.run = async (bot, message, args) => {
 	let toMute = message.guild.member(message.mentions.users.first()) || message.guild.members.get(args); //Пользователь
 	if(!toMute) message.channel.send("Вы не ввели discord tag пользователя!"); //Если пользователь не найден
 
-	var role = message.guild.roles.find("name", "Muted")
+	let role = message.guild.roles.find(r => r.name === "Muted"); //Роль
 	var roles = [];
 	message.guild.roles.map((data) => {
 		roles.push(data.name);
 	});
-
+	
 	//Если нет роли
 	if(!role) {
 		//Создаём роль

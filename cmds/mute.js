@@ -8,10 +8,6 @@ module.exports.run = async (bot, message, args) => {
 	if(!toMute) message.channel.send("Вы не ввели discord tag пользователя!"); //Если пользователь не найден
 
 	let role = message.guild.roles.find(r => r.name === "Muted"); //Роль
-	var roles = [];
-	message.guild.roles.map((data) => {
-		roles.push(data.name);
-	});
 	
 	//Если нет роли
 	if(!role) {
@@ -20,7 +16,6 @@ module.exports.run = async (bot, message, args) => {
 			role = await message.guild.createRole({
 				name: "Muted", //Имя роли
 				color: "#000000", //Цвет роли в HEX
-				position: roles.length - 1,
 				permissions: [] //Права роли
 			});
 

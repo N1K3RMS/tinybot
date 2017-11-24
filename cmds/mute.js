@@ -13,9 +13,15 @@ module.exports.run = async (bot, message, args) => {
 	if(!role) {
 		//Создаём роль
 		try {
+			var roles = [];
+			await message.guild.roles.map((data) => {
+				roles.push(data.name);
+			});
+			
 			role = await message.guild.createRole({
 				name: "Muted", //Имя роли
 				color: "#000000", //Цвет роли в HEX
+				position: roles.length - 1,
 				permissions: [] //Права роли
 			});
 

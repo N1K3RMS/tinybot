@@ -8,11 +8,6 @@ var ytsopt = {
 	key: process.env.ytkey
 };
 
-//Настройки скачивания
-var ytdlopt = {
-	f: "audioonly"
-};
-
 function play(connection, message, bot) {
 	var server = bot.queue[message.guild.id]; //Получаем сервер
 
@@ -34,7 +29,7 @@ function play(connection, message, bot) {
 			.setFooter(`Длина: ${time} | TinyBot v0.4`); //Футёр
 		message.channel.send({embed: videoinfo}); //Отправляем embed
 
-		var stream = ytdl(videoID, {filter: ytdlopt.f}); //Стрим
+		var stream = ytdl(videoID, {filter: "audioonly"}); //Стрим
 		server.dispatcher = connection.playStream(stream); //Запускаем стрим
 
 		server.dispatcher.on("end", () => {
@@ -64,7 +59,7 @@ module.exports.run = async (bot, message, args) => {
 	
 	//Если это ссылка
 	if(ytlc == true) {
-		ytdl.getInfo(args, {filter: ytdlopt.f}, (err, data) => {
+		ytdl.getInfo(args, {filter: "audioonly"}, (err, data) => {
 			server.queue.push({
 				"title": data.title,
 				"url": args

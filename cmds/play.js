@@ -1,43 +1,28 @@
 const Discord = require("discord.js"); //Discord.js
-const ytdl = require("ytdl-core"); //Скчиваем видео
-const ytsearch = require("youtube-search"); //Ищем видео
+const ytdl = require("youtube-dl"); //Скчиваем видео
+const yts = require("youtube-search"); //Ищем видео
 
-//Настройки поиска
-var ytsopt = {
-	maxResults: 1,
-	key: process.env.ytkey
-};
-
-function play(connection, message, bot) {
-	var server = bot.queue[message.guild.id]; //Получаем сервер
-
-	var videoID = server.queue[0].url; //ID видео
-	ytdl.getInfo(videoID, {filter: ytdlopt.f}, (err, data) => {
-		if(err) {
-			console.log(err);
-			message.channel.send("Видео не найдено!");
-		}
-		console.log(`${bot.user.username}: Сейчас играет: ${data.title}`); //Лог
-		var desc = data.description.substring(0, 150) + '...'; //Если описание больше 100 символов
-		var time = Math.floor(data.length_seconds / 60) + ':' + data.length_seconds % 60;
-
-		var videoinfo = new Discord.RichEmbed() //embed
-			.setAuthor(data.title, message.author.avatarURL, videoID)
-			.setColor("#ff3b3b")
-			.setThumbnail(data.thumbnail_url) //Превью
-			.setDescription(`**Описание:** ${desc}\n**Автор:** ${data.author.name}\n**Просмотров:** ${data.view_count}`)
-			.setFooter(`Длина: ${time} | TinyBot v0.4`); //Футёр
-		message.channel.send({embed: videoinfo}); //Отправляем embed
-
-		var stream = ytdl(videoID, {filter: "audioonly"}); //Стрим
-		server.dispatcher = connection.playStream(stream); //Запускаем стрим
-
-		server.dispatcher.on("end", () => {
-			server.queue.shift(); //Скипаем лист
-
-			if(server.queue[0]) play(connection, message, bot); //Если видео ещё есть то запускаем его
-			else connection.disconnect(); //Если нет то отключаемся
-		})
+async function play(connection, message, bot) {
+	var server = bot.queue[message.guild.id];
+	console.log(`${bot.user.username}: Сейчас играет: ${server.queue[0].title}`); //Лог
+	var description = server.queue[0].description.substring(0, 150) + '...';
+	
+	var videoinfo = new Discord.RichEmbed()
+		.setAuthor(server.queue[0].title, bot.user.avatarURL, server.queue[0].url)
+		.setColor("#ff3b3b")
+		.setThumbnail(server.queue[0].thumbnail)
+		.setDescription(`**Описание:** ${description}`)
+		.setFooter("TinyBot v0.4");
+	await message.channel.send({embed: videoinfo}); //Отправляем embed
+	
+	var stream = ytdl(server.queue[0].id, ['-f', 'bestaudio[ext=m4a]']);
+	server.dispatcher = connection.playStream(stream, { volume: 0.05 });
+	
+	server.dispatcher.on("end", () => {
+		server.queue.shift();
+		
+		if(server.queue[0]) play(connection, message, bot);
+		else connection.disconnect();
 	})
 };
 
@@ -55,16 +40,22 @@ module.exports.run = async (bot, message, args) => {
 	}
 	
 	var server = bot.queue[message.guild.id]; //Получаем сервер
-	var ytlc = args.indexOf("youtube.com/watch") >= 0; //Чекаем ссылка ли это
+	var ytlc = args.indexOf("youtube.com/watch") >= 0;
 	
 	//Если это ссылка
 	if(ytlc == true) {
-		ytdl.getInfo(args, {filter: "audioonly"}, (err, data) => {
+		ytdl.getInfo(args, ['-f', 'bestaudio[ext=m4a]'], (err, data) => {
+			if(err) console.log(err);
+			
 			server.queue.push({
+				"id": data.id,
 				"title": data.title,
-				"url": args
+				"url": data.url,
+				"thumbnail": data.thumbnail,
+				"description": data.description
 			});
-			if (!message.guild.voiceConnection) message.member.voiceChannel.join().then(function(connection){
+			
+			if (!message.guild.voiceConnection) message.member.voiceChannel.join().then((connection) => {
 				play(connection, message, bot);
 			});
 		});
@@ -72,29 +63,37 @@ module.exports.run = async (bot, message, args) => {
 
 	//Если это не ссылка
 	if(ytlc == false) {
-		ytsearch(args, ytsopt, (err, data) => {
+		yts(args, { maxResults: 1, key: process.env.ytkey }, (err, data) => {
 			if(err) console.log(err);
-				data.map((data) => {
-					var ytcc = data.link.indexOf("youtube.com/channel") >= 0; //Чекаем канал ли это
-					var ytpc = data.link.indexOf("youtube.com/playlist") >= 0; //Чекаем playlist ли это
-					if(ytcc == true) {
-						message.channel.send("Это канал а не видео!");
+			
+			data.map((data) => {
+				var ytcc = data.link.indexOf("youtube.com/channel") >= 0;
+				var ytpc = data.link.indexOf("youtube.com/playlist") >= 0;
+				
+				if(ytcc == true) {
+					message.channel.send("Это канал а не видео!");
+				}
+				
+				if (ytpc == true) {
+					message.channel.send("Это playlist! к сожеленеию бот не может проиграть вам его ;(");
+				}
+				
+				if (ytcc === false) {
+					if (ytpc === false) {
+						server.queue.push({
+							"id": data.id,
+							"title": data.title,
+							"url": data.link,
+							"thumbnail": data.thumbnails.high.url,
+							"description": data.description
+						});
+						
+						if (!message.guild.voiceConnection) message.member.voiceChannel.join().then((connection) => {
+							play(connection, message, bot);
+						})
 					}
-					if (ytpc == true) {
-						message.channel.send("Это playlist! к сожеленеию бот пока не может проиграть вам его ;(");
-					}
-					if (ytcc === false) { //Если не канал
-						if (ytpc === false){ //Если не playlist
-							server.queue.push({
-								"title": data.title,
-								"url": data.link
-							});
-							if (!message.guild.voiceConnection) message.member.voiceChannel.join().then(function(connection){
-								play(connection, message, bot);
-							})
-						}
-					}
-				})
+				}
+			})
 		})
 	}
 };

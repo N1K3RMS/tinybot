@@ -1,7 +1,3 @@
-const Discord = require("discord.js"); //Discord.js
-const ytdl = require("ytdl-core"); //Скчиваем видео
-const ytsearch = require("youtube-search"); //Ищем видео
-
 module.exports.run = async (bot, message, args) => {
 	if(!bot.queue[message.guild.id]) message.channel.send("Список пуст!"); //Запись список найден
 	if(bot.queue[message.guild.id]) {

@@ -28,7 +28,7 @@ async function play(connection, message, bot) {
 
 module.exports.run = async (bot, message, args) => {
 	if (!args) {
-			message.reply("Пожалуйста введите ссылку или название видео!");
+			message.channel.send("Пожалуйста введите ссылку или название видео!");
 	}
 
 	if (!message.member.voiceChannel) {

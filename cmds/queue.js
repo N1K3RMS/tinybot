@@ -5,9 +5,14 @@ module.exports.run = async (bot, message, args) => {
 		if(server.queue.length <= 0) message.channel.send("Список пуст!"); //Если названия в списке не найдены
 		if(!server.queue.length <= 0) {
 			//Получаем список видео
-			server.queue.forEach((f, i) => {
-				message.channel.send(`${i + 1}: ${f.title}`) //Выводим список
-			})
+			server.queue.forEach((video, i, queue) => {
+				i = i + 1;
+				
+				if(i === 1) list = `${i}: ${video.title}`
+				else list = `${list}\n${i}: ${video.title}`;
+				
+				if(i === queue.length) message.channel.send(list);
+			});
 		}
 	}
 }

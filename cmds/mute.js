@@ -51,7 +51,7 @@ module.exports.run = async (bot, message, args) => {
 	//Сохраняем файл с мутами
 	fs.writeFile("./mutes.json", JSON.stringify(bot.mutes, null, 4), err => {
 		if(err) console.log(err); //Ошибка
-		if(arg[1]) message.channel.send(`${toMute.user.tag} был отправлен в мут на: ${test[1]} сек!`);
+		if(arg[1]) message.channel.send(`${toMute.user.tag} был отправлен в мут на: ${arg[1]} сек!`);
 		if(!arg[1]) message.channel.send(`${toMute.user.tag} был отправлен в мут навсегда!`);
 	});
 	await toMute.addRole(role); //Добавляем роль пользователю

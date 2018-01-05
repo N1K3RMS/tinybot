@@ -16,7 +16,7 @@ async function play(connection, message, bot) {
 	await message.channel.send({embed: videoinfo}); //Отправляем embed
 	
 	var stream = ytdl(server.queue[0].id, ['-f', 'bestaudio[ext=m4a]']);
-	server.dispatcher = connection.playStream(stream, { volume: 0.05 });
+	server.dispatcher = connection.playStream(stream, { volume: 0.3 });
 	
 	server.dispatcher.on("end", () => {
 		server.queue.shift();
